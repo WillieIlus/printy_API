@@ -1,0 +1,142 @@
+"""
+Shop model. Inventory (Machine, Paper), pricing (PrintingRate, FinishingRate, Material),
+and catalog (Product) live in their respective apps.
+"""
+from django.db import models
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _
+
+
+class Shop(models.Model):
+    """Print shop - owner is the seller."""
+
+    name = models.CharField(
+        max_length=255,
+        default="",
+        verbose_name=_("name"),
+        help_text=_("Display name of the print shop."),
+    )
+    slug = models.SlugField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name=_("slug"),
+        help_text=_("URL-friendly identifier for the shop."),
+    )
+    currency = models.CharField(
+        max_length=3,
+        default="USD",
+        verbose_name=_("currency"),
+        help_text=_("ISO 4217 currency code (e.g. USD, EUR)."),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name=_("is active"),
+        help_text=_("Whether the shop is active and visible."),
+    )
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="owned_shops",
+        verbose_name=_("owner"),
+        help_text=_("User who owns this shop."),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+        help_text=_("Timestamp when the record was created."),
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("updated at"),
+        help_text=_("Timestamp when the record was last updated."),
+    )
+
+    class Meta:
+        verbose_name = _("shop")
+        verbose_name_plural = _("shops")
+
+    def __str__(self):
+        return self.name
+
+    def is_seller(self, user):
+        """Check if user is seller (owner) for this shop."""
+        return user.is_authenticated and self.owner_id == user.pk
+
+
+class FavoriteShop(models.Model):
+    """Buyer favorite - one per (user, shop)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorite_shops",
+        verbose_name=_("user"),
+    )
+    shop = models.ForeignKey(
+        Shop,
+        on_delete=models.CASCADE,
+        related_name="favorited_by",
+        verbose_name=_("shop"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    class Meta:
+        verbose_name = _("favorite shop")
+        verbose_name_plural = _("favorite shops")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "shop"],
+                name="unique_user_shop_favorite",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} favorites {self.shop}"
+
+
+class ShopRating(models.Model):
+    """Buyer rating for a shop - one per (user, shop)."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="shop_ratings",
+        verbose_name=_("user"),
+    )
+    shop = models.ForeignKey(
+        Shop,
+        on_delete=models.CASCADE,
+        related_name="ratings",
+        verbose_name=_("shop"),
+    )
+    stars = models.PositiveSmallIntegerField(
+        verbose_name=_("stars"),
+        help_text=_("Rating 1-5."),
+    )
+    comment = models.TextField(
+        blank=True,
+        default="",
+        verbose_name=_("comment"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+
+    class Meta:
+        verbose_name = _("shop rating")
+        verbose_name_plural = _("shop ratings")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "shop"],
+                name="unique_user_shop_rating",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} rated {self.shop} {self.stars} stars"

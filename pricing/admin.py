@@ -1,0 +1,87 @@
+from django.contrib import admin
+
+from .models import FinishingRate, Material, PrintingRate, ServiceRate, ServiceRateTier
+
+
+@admin.register(PrintingRate)
+class PrintingRateAdmin(admin.ModelAdmin):
+    list_display = [
+        "machine",
+        "sheet_size",
+        "color_mode",
+        "single_price",
+        "double_price",
+        "is_active",
+    ]
+    list_filter = ["sheet_size", "color_mode", "is_active"]
+
+
+@admin.register(FinishingRate)
+class FinishingRateAdmin(admin.ModelAdmin):
+    list_display = [
+        "name",
+        "shop",
+        "charge_unit",
+        "price",
+        "double_side_price",
+        "setup_fee",
+        "is_active",
+    ]
+    list_filter = ["charge_unit", "is_active"]
+    search_fields = ["name"]
+    fieldsets = (
+        (None, {"fields": ("shop", "name", "charge_unit", "is_active")}),
+        (
+            "Pricing",
+            {
+                "fields": ("price", "double_side_price", "setup_fee", "min_qty"),
+                "description": "double_side_price: for lamination etc. when applied to both sides. Blank = 2× single.",
+            },
+        ),
+    )
+
+
+@admin.register(Material)
+class MaterialAdmin(admin.ModelAdmin):
+    list_display = ["material_type", "shop", "unit", "selling_price", "is_active"]
+    list_filter = ["is_active"]
+    search_fields = ["material_type"]
+
+
+class ServiceRateTierInline(admin.TabularInline):
+    model = ServiceRateTier
+    extra = 0
+    fields = ["min_km", "max_km", "price"]
+
+
+@admin.register(ServiceRate)
+class ServiceRateAdmin(admin.ModelAdmin):
+    list_display = [
+        "code",
+        "name",
+        "shop",
+        "pricing_type",
+        "price",
+        "is_optional",
+        "is_negotiable",
+        "is_active",
+    ]
+    list_filter = ["pricing_type", "code", "is_active"]
+    search_fields = ["name", "code"]
+    inlines = [ServiceRateTierInline]
+    fieldsets = (
+        (None, {"fields": ("shop", "code", "name", "pricing_type", "is_active")}),
+        (
+            "Pricing",
+            {
+                "fields": ("price", "is_optional", "is_negotiable"),
+                "description": "price: for FIXED. Tiers: for TIERED_DISTANCE.",
+            },
+        ),
+    )
+
+
+@admin.register(ServiceRateTier)
+class ServiceRateTierAdmin(admin.ModelAdmin):
+    list_display = ["service_rate", "min_km", "max_km", "price"]
+    list_filter = ["service_rate__code"]
